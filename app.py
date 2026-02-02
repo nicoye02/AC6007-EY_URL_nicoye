@@ -1,7 +1,9 @@
 from flask import Flask, render_template, request, jsonify
 import pandas as pd
-import openai  # 用于调用大模型解决词义理解问题
+from ai_engine import get_gemini_labels  # 用于调用大模型解决词义理解问题
 from scraper import get_business_description  # 自定义抓取模块
+from dotenv import load_dotenv
+load_dotenv() # 这会自动读取 .env 文件里的 Key
 
 app = Flask(__name__)
 
@@ -19,17 +21,17 @@ def index():
 
 @app.route('/analyze', methods=['POST'])
 def analyze():
-    company_name = request.form.get('company_name')
+    url = request.json.get('url')
     # 1. 抓取原始数据（解决表格和描述提取问题）
-    raw_desc, table_data = get_business_description(company_name)
+    desc, table = get_business_description(url)
     
     # 2. 使用 AI 进行语义标注（解决“无法理解词义”痛点 [cite: 1, 3]）
-    labels = ai_semantic_labeling(raw_desc)
+    ai_result = get_gemini_labels(desc)
     
     return jsonify({
-        "description": raw_desc,
-        "labels": labels,
-        "tables": table_data
+        "description": desc,
+        "labels": ai_result['labels'],
+        "reasoning": ai_result['reasoning']
     })
 
 def ai_semantic_labeling(description):
